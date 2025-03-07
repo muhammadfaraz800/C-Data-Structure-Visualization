@@ -9,7 +9,8 @@ This project is a web-based tool that visualizes C++ data structures such as nod
 - **Real-Time Updates:** When a node is moved, all connected pointers update automatically to point to the correct node.
 - **Notifications:** On adding nodes, pointers, or resetting the workspace, a temporary notification is displayed.
 - **PWA Ready:** A `manifest.json` file is included for Progressive Web App support.
-
+## video
+[![Watch the video](https://img.youtube.com/vi/V_IrBO7leFY/maxresdefault.jpg)](https://youtu.be/V_IrBO7leFY)
 ## How to Use
 
 1. Open `index.html` in your browser.
