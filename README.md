@@ -26,5 +26,4 @@ This project is a web-based tool that visualizes C++ data structures such as nod
 Clone the repository:
 
 ```bash
-[git clone https://github.com/yourusername/cpp-dsa-visualization.git
-](https://github.com/muhammadfaraz800/C-Data-Structure-Visualization.git)
+git https://github.com/muhammadfaraz800/C-Data-Structure-Visualization.git
