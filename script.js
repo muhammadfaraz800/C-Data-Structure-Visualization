@@ -482,29 +482,188 @@ document.addEventListener('DOMContentLoaded', function() {
         updateConnectionPath(source, target, svg, isSourcePrev);
     }
 
-    // Update a connection path
-    function updateConnectionPath(source, target, svg, isSourcePrev = false) {
-        const sourceHandle = isSourcePrev ? 
-            source.querySelector('.prev-pointer-handle') : 
-            source.querySelector('.pointer-handle');
-        
-        if (!sourceHandle) return;
-        
-        const sourceRect = sourceHandle.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const workspaceRect = workspace.getBoundingClientRect();
+    
+function isPointInsideRect(x, y, rect) {
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
 
-        const startX = sourceRect.left - workspaceRect.left + sourceHandle.offsetWidth/2;
-        const startY = sourceRect.top - workspaceRect.top + sourceHandle.offsetHeight/2;
-        
-        // Changed to point to the top-left edge of the target
-        const endX = targetRect.left - workspaceRect.left;
-        const endY = targetRect.top - workspaceRect.top;
-        
-        const path = svg.querySelector('path');
-        path.setAttribute("d", `M ${startX} ${startY} L ${endX} ${endY}`);
+// Helper: Sample points along a quadratic Bézier curve between (startX, startY) and (endX, endY)
+// using the control point (controlX, controlY). Returns an array of {x, y} objects.
+function sampleQuadraticBezier(startX, startY, controlX, controlY, endX, endY, steps = 20) {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const oneMinusT = 1 - t;
+        const x = oneMinusT * oneMinusT * startX + 2 * oneMinusT * t * controlX + t * t * endX;
+        const y = oneMinusT * oneMinusT * startY + 2 * oneMinusT * t * controlY + t * t * endY;
+        points.push({ x, y });
     }
+    return points;
+}
 
+// Checks if a point (x, y) is inside a rectangle (with properties: left, top, right, bottom)
+function isPointInsideRect(x, y, rect) {
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+// Samples points along a quadratic Bézier curve between (startX, startY) and (endX, endY)
+// using the control point (controlX, controlY). Returns an array of {x, y} objects.
+function sampleQuadraticBezier(startX, startY, controlX, controlY, endX, endY, steps = 20) {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const oneMinusT = 1 - t;
+        const x = oneMinusT * oneMinusT * startX + 2 * oneMinusT * t * controlX + t * t * endX;
+        const y = oneMinusT * oneMinusT * startY + 2 * oneMinusT * t * controlY + t * t * endY;
+        points.push({ x, y });
+    }
+    return points;
+}
+
+// Compute a safe control point for the Bézier curve so that no sample point falls
+// inside any interfering rectangle and the candidate stays within the workspace.
+// If the arrow is heading out of the workspace from the top, the candidate will be forced below;
+// if it’s leaving from below, the candidate will be forced above.
+function computeSafeControlPoint(startX, startY, endX, endY, interferingRects) {
+    // Compute the midpoint and unit perpendicular vector from start to end.
+    const midX = (startX + endX) / 2;
+    const midY = (startY + endY) / 2;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    let unitPerpX = 0, unitPerpY = 0;
+    if (len !== 0) {
+        unitPerpX = -dy / len;
+        unitPerpY = dx / len;
+    }
+    
+    // Workspace dimensions (relative coordinates: 0 to workspace.offsetWidth/offsetHeight)
+    const wsWidth = workspace.offsetWidth;
+    const wsHeight = workspace.offsetHeight;
+    
+    // candidateIsValid tests two things:
+    // 1. The candidate control point lies inside the workspace.
+    // 2. All sampled points along the curve avoid interfering rectangles.
+    function candidateIsValid(controlX, controlY) {
+        if (controlX < 0 || controlX > wsWidth || controlY < 0 || controlY > wsHeight) {
+            return false;
+        }
+        const samples = sampleQuadraticBezier(startX, startY, controlX, controlY, endX, endY, 20);
+        for (const pt of samples) {
+            for (const rect of interferingRects) {
+                if (isPointInsideRect(pt.x, pt.y, rect)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    
+    // Start with an initial offset.
+    let offset = 40;
+    const maxOffset = 300;
+    let candidateFound = null;
+    
+    // We try both perpendicular directions.
+    while (offset <= maxOffset && !candidateFound) {
+        // Candidate in the positive perpendicular direction.
+        let candidatePos = {
+            x: midX + unitPerpX * offset,
+            y: midY + unitPerpY * offset
+        };
+        // Candidate in the negative perpendicular direction.
+        let candidateNeg = {
+            x: midX - unitPerpX * offset,
+            y: midY - unitPerpY * offset
+        };
+        
+        // If the arrow is heading out of the workspace from the top (start or end near top)
+        // then force candidate control point below the midpoint.
+        if (startY < 40 || endY < 40) {
+            candidatePos = { x: midX - unitPerpX * offset, y: midY - unitPerpY * offset };
+            candidateNeg = { x: midX + unitPerpX * offset, y: midY + unitPerpY * offset };
+        }
+        // If the arrow is near the bottom edge, force the control point upward.
+        if (startY > wsHeight - 40 || endY > wsHeight - 40) {
+            candidatePos = { x: midX + unitPerpX * offset, y: midY + unitPerpY * offset };
+            candidateNeg = { x: midX - unitPerpX * offset, y: midY - unitPerpY * offset };
+        }
+        
+        const validPos = candidateIsValid(candidatePos.x, candidatePos.y);
+        const validNeg = candidateIsValid(candidateNeg.x, candidateNeg.y);
+        
+        if (validPos && validNeg) {
+            // Choose the candidate with the smaller offset (or arbitrarily if equal).
+            candidateFound = candidatePos; // (offset is the same for both)
+        } else if (validPos) {
+            candidateFound = candidatePos;
+        } else if (validNeg) {
+            candidateFound = candidateNeg;
+        }
+        
+        offset += 20;
+    }
+    
+    // If no valid candidate was found, return the straight-line midpoint (allow crossing).
+    return candidateFound || { x: midX, y: midY };
+}
+
+// --- Updated updateConnectionPath Function ---
+
+function updateConnectionPath(source, target, svg, isSourcePrev = false) {
+    // Select the correct pointer handle.
+    const sourceHandle = isSourcePrev ?
+        source.querySelector('.prev-pointer-handle') :
+        source.querySelector('.pointer-handle');
+    if (!sourceHandle) return;
+    
+    // Get bounding rectangles relative to the workspace.
+    const workspaceRect = workspace.getBoundingClientRect();
+    const sourceRect = sourceHandle.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    
+    // Calculate start point (center of source handle) and end point (using target's top-left).
+    const startX = sourceRect.left - workspaceRect.left + sourceHandle.offsetWidth / 2;
+    const startY = sourceRect.top - workspaceRect.top + sourceHandle.offsetHeight / 2;
+    const endX = targetRect.left - workspaceRect.left;
+    const endY = targetRect.top - workspaceRect.top;
+    
+    // Gather interfering elements (all .memory-box elements except source and target) in workspace-relative coordinates.
+    const interferingElements = Array.from(workspace.querySelectorAll('.memory-box')).filter(elem => elem !== source && elem !== target);
+    const interferingRects = interferingElements.map(elem => {
+        const r = elem.getBoundingClientRect();
+        return {
+            left: r.left - workspaceRect.left,
+            top: r.top - workspaceRect.top,
+            right: r.right - workspaceRect.left,
+            bottom: r.bottom - workspaceRect.top
+        };
+    });
+    
+    // First, sample a straight line to check if it’s collision-free.
+    const straightSamples = sampleQuadraticBezier(startX, startY, (startX + endX) / 2, (startY + endY) / 2, endX, endY, 10);
+    let straightLineValid = true;
+    for (const pt of straightSamples) {
+        for (const rect of interferingRects) {
+            if (isPointInsideRect(pt.x, pt.y, rect)) {
+                straightLineValid = false;
+                break;
+            }
+        }
+        if (!straightLineValid) break;
+    }
+    
+    const path = svg.querySelector('path');
+    if (straightLineValid) {
+        // If no interference, draw a straight line.
+        path.setAttribute("d", `M ${startX} ${startY} L ${endX} ${endY}`);
+        return;
+    }
+    
+    // Otherwise, compute a safe control point that avoids interfering elements and respects workspace boundaries.
+    const controlPoint = computeSafeControlPoint(startX, startY, endX, endY, interferingRects);
+    path.setAttribute("d", `M ${startX} ${startY} Q ${controlPoint.x} ${controlPoint.y} ${endX} ${endY}`);
+}
     // Function to get the target element at the end of a pointer chain
     function getTargetElementFromPointerChain(sourceId) {
         const connection = connections.find(conn => conn.sourceId === sourceId);
