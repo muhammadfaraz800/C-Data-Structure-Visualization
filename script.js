@@ -261,7 +261,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (isConnecting && tempLine && sourcePointer) {
-            const handleElement = sourcePointer.querySelector('.pointer-handle');
+            let handleElement;
+            if (sourcePointer.dataset.activePointer === 'prev') {
+                handleElement = sourcePointer.querySelector('.prev-pointer-handle');
+            } else {
+                handleElement = sourcePointer.querySelector('.pointer-handle');
+            }
             const handleRect = handleElement.getBoundingClientRect();
             const workspaceRect = workspace.getBoundingClientRect();
             const startX = handleRect.left - workspaceRect.left + handleElement.offsetWidth/2;
@@ -300,7 +305,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (targetNode && sourcePointer) {
                 connectPointerToNode(sourcePointer, targetNode, e);
-            }
+            } else if (sourcePointer) {
+            detachPointer(sourcePointer);
+        }
             
             sourcePointer = null;
         }
@@ -640,8 +647,16 @@ function updateConnectionPath(source, target, svg, isSourcePrev = false) {
     // Calculate start point (center of source handle) and end point (using target's top-left).
     const startX = sourceRect.left - workspaceRect.left + sourceHandle.offsetWidth / 2;
     const startY = sourceRect.top - workspaceRect.top + sourceHandle.offsetHeight / 2;
-    const endX = targetRect.left - workspaceRect.left;
-    const endY = targetRect.top - workspaceRect.top;
+    let endX, endY;
+    if (startX > (targetRect.left - workspaceRect.left + targetRect.width / 2)) {
+    // Coming from the right: use top-right corner.
+        endX = targetRect.right - workspaceRect.left;
+        endY = targetRect.top - workspaceRect.top;
+    } else {
+    // Otherwise, use top-left corner.
+        endX = targetRect.left - workspaceRect.left;
+        endY = targetRect.top - workspaceRect.top;
+    }
     
     // Gather interfering elements (all .memory-box elements except source and target) in workspace-relative coordinates.
     const interferingElements = Array.from(workspace.querySelectorAll('.memory-box')).filter(elem => elem !== source && elem !== target);
@@ -841,5 +856,33 @@ function showNotification(message) {
         notification.remove();
     }, 1000);
 }
+// Update for detaching
+function detachPointer(ptr) {
+    // Remove any connection arrow(s) for this pointer.
+    const connectionLine = document.getElementById(`connection-${ptr.id}`);
+    const connectionLinePrev = document.getElementById(`connection-${ptr.id}-prev`);
+    if (connectionLine) workspace.removeChild(connectionLine);
+    if (connectionLinePrev) workspace.removeChild(connectionLinePrev);
+    
+    // Remove any connection records for this pointer.
+    connections = connections.filter(conn => conn.sourceId !== ptr.id);
+    
+    // Set the displayed value to "NULL" depending on the element type. (update)
+    if (ptr.dataset.type === 'pointer') {
+        const valElem = ptr.querySelector('.value');
+        if (valElem) valElem.textContent = 'NULL';
+    } else if (ptr.dataset.type === 'node') {
+        const valElem = ptr.querySelector('.pointer-value');
+        if (valElem) valElem.textContent = 'NULL';
+    } else if (ptr.dataset.type === 'doubly-node') {
+        if (ptr.dataset.activePointer === 'prev') {
+            const valElem = ptr.querySelector('.prev-pointer-section .pointer-value');
+            if (valElem) valElem.textContent = 'NULL';
+        } else {
+            const valElem = ptr.querySelector('.pointer-section .pointer-value');
+            if (valElem) valElem.textContent = 'NULL';
+        }
+    }
+}    
 
 });
