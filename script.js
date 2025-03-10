@@ -307,159 +307,120 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Connect a pointer to a node
     function connectPointerToNode(source, target, e) {
-        const sourceId = source.id;
-        const isSourcePrev = source.dataset.activePointer === 'prev';
-        
-        // Remove any existing connection for this pointer
-        connections = connections.filter(conn => {
-            if (conn.sourceId === sourceId && 
-                ((!isSourcePrev && !conn.isSourcePrev) || 
-                 (isSourcePrev && conn.isSourcePrev))) {
-                const existingLine = document.getElementById(
-                    `connection-${conn.sourceId}${isSourcePrev ? '-prev' : ''}`
-                );
-                if (existingLine) {
-                    workspace.removeChild(existingLine);
-                }
-                return false;
-            }
-            return true;
-        });
+    const sourceId = source.id;
+    const isSourcePrev = source.dataset.activePointer === 'prev';
     
-        // Determine if the drop is in the node’s pointer section by checking its bounding box.
-        let actualTarget = target;
-        let isTargetingPointerSection = false;
-        let isPointingToNull = false;
-        
-        let pointerSection = null;
-        const ps = target.querySelector('.pointer-section');
-        if (ps) {
-            const psRect = ps.getBoundingClientRect();
-            if (e.clientX >= psRect.left && e.clientX <= psRect.right &&
-                e.clientY >= psRect.top && e.clientY <= psRect.bottom) {
-                pointerSection = ps;
+    // Remove any existing connection for this pointer
+    connections = connections.filter(conn => {
+        if (conn.sourceId === sourceId && 
+            ((!isSourcePrev && !conn.isSourcePrev) || 
+             (isSourcePrev && conn.isSourcePrev))) {
+            const existingLine = document.getElementById(
+                `connection-${conn.sourceId}${isSourcePrev ? '-prev' : ''}`
+            );
+            if (existingLine) {
+                workspace.removeChild(existingLine);
+            }
+            return false;
+        }
+        return true;
+    });
+
+    // Determine if the drop is in the node’s pointer section
+    let actualTarget = target;
+    let isTargetingPointerSection = false;
+    let isPointingToNull = false;
+
+    if (target.dataset.type === 'doubly-node') {
+        let prevPointerSection = null;
+        const pps = target.querySelector('.prev-pointer-section');
+        if (pps) {
+            const ppsRect = pps.getBoundingClientRect();
+            if (e.clientX >= ppsRect.left && e.clientX <= ppsRect.right &&
+                e.clientY >= ppsRect.top && e.clientY <= ppsRect.bottom) {
+                prevPointerSection = pps;
             }
         }
-        
-        if (pointerSection) {
+        if (prevPointerSection) {
             isTargetingPointerSection = true;
-            // If the node already has a pointer connection, use that target.
-            const nodeConnection = connections.find(conn => conn.sourceId === target.id);
+            const nodeConnection = connections.find(conn => conn.sourceId === target.id && conn.isSourcePrev);
             if (nodeConnection) {
                 actualTarget = document.getElementById(nodeConnection.targetId);
             } else {
-                // Otherwise, the node’s pointer is NULL.
                 isPointingToNull = true;
                 actualTarget = null;
             }
-        } else if (target.dataset.type === 'pointer') {
-            // If the target is a pointer element, follow its connection.
-            const targetPointerConnection = connections.find(conn => conn.sourceId === target.id);
-            if (targetPointerConnection) {
-                const pointedNode = document.getElementById(targetPointerConnection.targetId);
-                if (pointedNode) {
-                    actualTarget = pointedNode;
-                    isTargetingPointerSection = targetPointerConnection.isTargetingPointerSection;
-                }
-            } else {
-                isPointingToNull = true;
-                actualTarget = null;
-            }
-        } else if (target.dataset.type === 'doubly-node') {
-            // For doubly-linked nodes, do a similar check for the prev and next pointer sections.
-            let prevPointerSection = null;
-            const pps = target.querySelector('.prev-pointer-section');
-            if (pps) {
-                const ppsRect = pps.getBoundingClientRect();
-                if (e.clientX >= ppsRect.left && e.clientX <= ppsRect.right &&
-                    e.clientY >= ppsRect.top && e.clientY <= ppsRect.bottom) {
-                    prevPointerSection = pps;
+        } else {
+            let pointerSection = null;
+            const ps = target.querySelector('.pointer-section');
+            if (ps) {
+                const psRect = ps.getBoundingClientRect();
+                if (e.clientX >= psRect.left && e.clientX <= psRect.right &&
+                    e.clientY >= psRect.top && e.clientY <= psRect.bottom) {
+                    pointerSection = ps;
                 }
             }
-            if (prevPointerSection) {
+            if (pointerSection) {
                 isTargetingPointerSection = true;
-                const nodeConnection = connections.find(conn => conn.sourceId === target.id && conn.isSourcePrev);
+                const nodeConnection = connections.find(conn => conn.sourceId === target.id && !conn.isSourcePrev);
                 if (nodeConnection) {
                     actualTarget = document.getElementById(nodeConnection.targetId);
                 } else {
                     isPointingToNull = true;
                     actualTarget = null;
                 }
-            } else {
-                let pointerSection = null;
-                const ps = target.querySelector('.pointer-section');
-                if (ps) {
-                    const psRect = ps.getBoundingClientRect();
-                    if (e.clientX >= psRect.left && e.clientX <= psRect.right &&
-                        e.clientY >= psRect.top && e.clientY <= psRect.bottom) {
-                        pointerSection = ps;
-                    }
-                }
-                if (pointerSection) {
-                    isTargetingPointerSection = true;
-                    const nodeConnection = connections.find(conn => conn.sourceId === target.id && !conn.isSourcePrev);
-                    if (nodeConnection) {
-                        actualTarget = document.getElementById(nodeConnection.targetId);
-                    } else {
-                        isPointingToNull = true;
-                        actualTarget = null;
-                    }
-                }
             }
-        }
-        
-        // Clear any “deleted” styling
-        if (source.dataset.type === 'pointer') {
-            source.querySelector('.value').classList.remove('deleted-pointer');
-        } else if (source.dataset.type === 'node') {
-            source.querySelector('.pointer-value').classList.remove('deleted-pointer');
-        } else if (source.dataset.type === 'doubly-node') {
-            if (isSourcePrev) {
-                const pointerValues = source.querySelectorAll('.prev-pointer-section .pointer-value');
-                pointerValues.forEach(pv => pv.classList.remove('deleted-pointer'));
-            } else {
-                const pointerValues = source.querySelectorAll('.pointer-section .pointer-value');
-                pointerValues.forEach(pv => pv.classList.remove('deleted-pointer'));
-            }
-        }
-        
-        // Only create a connection if the target isn’t NULL.
-        if (!isPointingToNull) {
-            connections.push({
-                sourceId: sourceId,
-                targetId: isTargetingPointerSection && actualTarget ? actualTarget.id : 
-                         isTargetingPointerSection && !actualTarget ? target.id : 
-                         actualTarget ? actualTarget.id : target.id,
-                isTargetingPointerSection: isTargetingPointerSection,
-                isSourcePrev: isSourcePrev
-            });
-        }
-        
-        // Update the pointer’s displayed value.
-        if (source.dataset.type === 'pointer') {
-            source.querySelector('.value').textContent = actualTarget ? actualTarget.dataset.address : 'NULL';
-        } else if (source.dataset.type === 'node') {
-            source.querySelector('.pointer-value').textContent = actualTarget ? actualTarget.dataset.address : 'NULL';
-        } else if (source.dataset.type === 'doubly-node') {
-            if (isSourcePrev) {
-                source.querySelector('.prev-pointer-section .pointer-value').textContent = 
-                    actualTarget ? actualTarget.dataset.address : 'NULL';
-            } else {
-                source.querySelector('.pointer-section .pointer-value').textContent = 
-                    actualTarget ? actualTarget.dataset.address : 'NULL';
-            }
-        }
-        
-        // Reset the active pointer flag.
-        delete source.dataset.activePointer;
-        
-        // If a valid target exists, draw the connection arrow.
-        if (actualTarget) {
-            drawConnection(source, actualTarget, isSourcePrev);
         }
     }
-    
 
+    // Clear any “deleted” styling
+    if (source.dataset.type === 'pointer') {
+        source.querySelector('.value').classList.remove('deleted-pointer');
+    } else if (source.dataset.type === 'node') {
+        source.querySelector('.pointer-value').classList.remove('deleted-pointer');
+    } else if (source.dataset.type === 'doubly-node') {
+        if (isSourcePrev) {
+            const pointerValues = source.querySelectorAll('.prev-pointer-section .pointer-value');
+            pointerValues.forEach(pv => pv.classList.remove('deleted-pointer'));
+        } else {
+            const pointerValues = source.querySelectorAll('.pointer-section .pointer-value');
+            pointerValues.forEach(pv => pv.classList.remove('deleted-pointer'));
+        }
+    }
+
+    // Only create a connection if the target isn’t NULL
+    if (!isPointingToNull && actualTarget) {
+        connections.push({
+            sourceId: sourceId,
+            targetId: actualTarget.id,
+            isTargetingPointerSection: isTargetingPointerSection,
+            isSourcePrev: isSourcePrev
+        });
+    }
+
+    // Update the pointer’s displayed value
+    if (source.dataset.type === 'pointer') {
+        source.querySelector('.value').textContent = actualTarget ? actualTarget.dataset.address : 'NULL';
+    } else if (source.dataset.type === 'node') {
+        source.querySelector('.pointer-value').textContent = actualTarget ? actualTarget.dataset.address : 'NULL';
+    } else if (source.dataset.type === 'doubly-node') {
+        if (isSourcePrev) {
+            source.querySelector('.prev-pointer-section .pointer-value').textContent = 
+                actualTarget ? actualTarget.dataset.address : 'NULL';
+        } else {
+            source.querySelector('.pointer-section .pointer-value').textContent = 
+                actualTarget ? actualTarget.dataset.address : 'NULL';
+        }
+    }
+
+    // Reset the active pointer flag
+    delete source.dataset.activePointer;
+
+    // Draw connection only if there’s a valid target
+    if (actualTarget) {
+        drawConnection(source, actualTarget, isSourcePrev);
+    }
+}
     // Draw a connection line between a pointer and a node
     function drawConnection(source, target, isSourcePrev = false) {
         const svg = document.createElementNS(svgNS, "svg");
