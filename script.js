@@ -1,4 +1,3 @@
-//A lot of bugs and improvements in this version. If you are reading this please provide suggestions and feedback
 document.addEventListener('DOMContentLoaded', function() {
     const workspace = document.getElementById('workspace');
     const createNodeBtn = document.getElementById('createNode');
@@ -306,8 +305,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (targetNode && sourcePointer) {
                 connectPointerToNode(sourcePointer, targetNode, e);
             } else if (sourcePointer) {
-            detachPointer(sourcePointer);
-        }
+                // If no valid target is found, detach the pointer (set its value to NULL).
+                detachPointer(sourcePointer);
+            }
             
             sourcePointer = null;
         }
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 actualTarget = target;
             }
-            } else if (target.dataset.type === 'doubly-node') {
+        } else if (target.dataset.type === 'doubly-node') {
             const pps = target.querySelector('.prev-pointer-section');
             const ps = target.querySelector('.pointer-section');
             let inPrevSection = false;
@@ -405,13 +405,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 actualTarget = target;
             }
-        }
-         else {
-                    // Drop outside the next section means we use the node itself.
-                    actualTarget = target;
-                }
-            }
-            
         } else if (target.dataset.type === 'pointer') {
             // For pointer elements, follow its connection chain.
             const targetPointerConnection = connections.find(conn => conn.sourceId === target.id);
@@ -645,11 +638,11 @@ function updateConnectionPath(source, target, svg, isSourcePrev = false) {
     const startY = sourceRect.top - workspaceRect.top + sourceHandle.offsetHeight / 2;
     let endX, endY;
     if (startX > (targetRect.left - workspaceRect.left + targetRect.width / 2)) {
-    // Coming from the right: use top-right corner.
+        // Coming from the right: use top-right corner.
         endX = targetRect.right - workspaceRect.left;
         endY = targetRect.top - workspaceRect.top;
     } else {
-    // Otherwise, use top-left corner.
+        // Otherwise, use top-left corner.
         endX = targetRect.left - workspaceRect.left;
         endY = targetRect.top - workspaceRect.top;
     }
@@ -852,6 +845,7 @@ function showNotification(message) {
         notification.remove();
     }, 1000);
 }
+
 // Update for detaching
 function detachPointer(ptr) {
     // Remove any connection arrow(s) for this pointer.
@@ -879,6 +873,6 @@ function detachPointer(ptr) {
             if (valElem) valElem.textContent = 'NULL';
         }
     }
-}    
+}
 
 });
