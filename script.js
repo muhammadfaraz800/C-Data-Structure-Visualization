@@ -363,54 +363,50 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 actualTarget = target;
             }
-        } else if (target.dataset.type === 'doubly-node') {
-            if (isSourcePrev) {
-                // For 'prev' pointer of a doubly node:
-                const pps = target.querySelector('.prev-pointer-section');
-                let inPrevSection = false;
-                if (pps) {
-                    const ppsRect = pps.getBoundingClientRect();
-                    if (e.clientX >= ppsRect.left && e.clientX <= ppsRect.right &&
-                        e.clientY >= ppsRect.top && e.clientY <= ppsRect.bottom) {
-                        inPrevSection = true;
-                    }
+            } else if (target.dataset.type === 'doubly-node') {
+            const pps = target.querySelector('.prev-pointer-section');
+            const ps = target.querySelector('.pointer-section');
+            let inPrevSection = false;
+            let inNextSection = false;
+        
+            if (pps) {
+                const ppsRect = pps.getBoundingClientRect();
+                if (e.clientX >= ppsRect.left && e.clientX <= ppsRect.right &&
+                    e.clientY >= ppsRect.top && e.clientY <= ppsRect.bottom) {
+                    inPrevSection = true;
                 }
-                if (inPrevSection) {
-                    isTargetingPointerSection = true;
-                    // If a previous connection exists, follow it; otherwise, target remains null.
-                    const nodeConnection = connections.find(conn => conn.sourceId === target.id && conn.isSourcePrev);
-                    if (nodeConnection) {
-                        actualTarget = document.getElementById(nodeConnection.targetId);
-                    } else {
-                        isPointingToNull = true;
-                        actualTarget = null;
-                    }
+            }
+            if (ps) {
+                const psRect = ps.getBoundingClientRect();
+                if (e.clientX >= psRect.left && e.clientX <= psRect.right &&
+                    e.clientY >= psRect.top && e.clientY <= psRect.bottom) {
+                    inNextSection = true;
+                }
+            }
+        
+            if (inPrevSection) {
+                isTargetingPointerSection = true;
+                const nodeConnection = connections.find(conn => conn.sourceId === target.id && conn.isSourcePrev);
+                if (nodeConnection) {
+                    actualTarget = document.getElementById(nodeConnection.targetId);
                 } else {
-                    // Drop outside the prev section means we use the node itself.
-                    actualTarget = target;
+                    isPointingToNull = true;
+                    actualTarget = null;
+                }
+            } else if (inNextSection) {
+                isTargetingPointerSection = true;
+                const nodeConnection = connections.find(conn => conn.sourceId === target.id && !conn.isSourcePrev);
+                if (nodeConnection) {
+                    actualTarget = document.getElementById(nodeConnection.targetId);
+                } else {
+                    isPointingToNull = true;
+                    actualTarget = null;
                 }
             } else {
-                // For 'next' pointer of a doubly node:
-                const ps = target.querySelector('.pointer-section');
-                let inNextSection = false;
-                if (ps) {
-                    const psRect = ps.getBoundingClientRect();
-                    if (e.clientX >= psRect.left && e.clientX <= psRect.right &&
-                        e.clientY >= psRect.top && e.clientY <= psRect.bottom) {
-                        inNextSection = true;
-                    }
-                }
-                if (inNextSection) {
-                    isTargetingPointerSection = true;
-                    // If a next connection exists, follow it; otherwise, target remains null.
-                    const nodeConnection = connections.find(conn => conn.sourceId === target.id && !conn.isSourcePrev);
-                    if (nodeConnection) {
-                        actualTarget = document.getElementById(nodeConnection.targetId);
-                    } else {
-                        isPointingToNull = true;
-                        actualTarget = null;
-                    }
-                } else {
+                actualTarget = target;
+            }
+        }
+         else {
                     // Drop outside the next section means we use the node itself.
                     actualTarget = target;
                 }
