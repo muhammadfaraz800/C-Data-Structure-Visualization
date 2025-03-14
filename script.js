@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         node.innerHTML = `
             <div class="delete-btn" title="Delete node">✕</div>
             <div class="title" contenteditable="true">Node ${id}</div>
-            <div class="data-section">${Math.floor(Math.random() * 100)}</div>
+            <div class="data-section" contenteditable="true">${Math.floor(Math.random() * 100)}</div>
             <div class="pointer-section">
                 <span>next:</span>
                 <div class="pointer-value">NULL</div>
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="pointer-value">NULL</div>
                 <div class="prev-pointer-handle" data-ptr-id="prev-node-${id}"></div>
             </div>
-            <div class="data-section">${Math.floor(Math.random() * 100)}</div>
+            <div class="data-section" contenteditable="true">${Math.floor(Math.random() * 100)}</div>
             <div class="pointer-section">
                 <span>next:</span>
                 <div class="pointer-value">NULL</div>
