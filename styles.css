@@ -144,8 +144,11 @@ button:hover {
     border-radius: 4px;
     font-family: monospace;
     margin-bottom: 5px;
+    cursor: text;
 }
-
+.memory-box .data-section:focus {
+    outline: 2px solid #007bff; /* Highlight when focused */
+}
 .memory-box .pointer-section {
     display: flex;
     justify-content: space-between;
